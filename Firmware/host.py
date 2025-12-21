@@ -15,7 +15,7 @@ COM_PORT = "COM11"
 # Home Assistant credentials
 HA_URL = "http://192.168.1.186:8123"
 HA_TOKEN = os.getenv("HA_TOKEN")
-SERVER_START_ENTITY = "button.wake_on_lan"
+SERVER_START_ENTITY = "button.wake_on_lan_18_03_73_50_f3_d9"
 
 #-----------------------------------------#
 
@@ -27,9 +27,7 @@ class ServerState(Enum):
     ERROR = auto()
 
 state = None
-
-ser = serial.Serial(COM_PORT, 115200, timeout=0)
-sleep(1)
+ser = None
 
 def send(cmd: str):
     ser.write((cmd + "\n").encode())
@@ -148,10 +146,22 @@ def update_server_state():
         print(f"Server state changed from {state} to {new_state}")
         state = new_state
 
+def wait_for_device_connected():
+    global ser
+    while True:
+        try:
+            ser = serial.Serial(COM_PORT, 115200, timeout=0)
+            print("Found device on", COM_PORT)
+            return
+        except serial.serialutil.SerialException:
+            sleep(1)
+
 def main():
     if not HA_TOKEN:
         print("Missing HA_TOKEN. Set it in your environment or .env file.")
         return
+    
+    wait_for_device_connected()
 
     if not wait_for_device_ready():
         print("Device not ready, exiting...")

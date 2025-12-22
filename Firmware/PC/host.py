@@ -4,6 +4,7 @@ import dotenv
 import os
 import requests
 from enum import Enum, auto
+import paho.mqtt.client as mqtt
 
 dotenv.load_dotenv()
 
@@ -12,10 +13,11 @@ dotenv.load_dotenv()
 # Hackpad port
 COM_PORT = "COM11"
 
-# Home Assistant credentials
-HA_URL = "http://192.168.1.186:8123"
-HA_TOKEN = os.getenv("HA_TOKEN")
-SERVER_START_ENTITY = "button.wake_on_lan_18_03_73_50_f3_d9"
+# MQTT
+MQTT_BROKER = "192.168.1.186"
+MQTT_PORT = 1883
+MQTT_USERNAME = "mqtt-user"
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
 
 #-----------------------------------------#
 
@@ -28,6 +30,48 @@ class ServerState(Enum):
 
 state = None
 ser = None
+
+# ------------- MQTT Setup ------------- #
+MQTT_TOPICS = [
+    ("minecraft/chat", 0),
+    ("minecraft/log", 0),
+    ("minecraft/players", 0),
+    ("minecraft/status", 0),
+]
+
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print("[MQTT] Connected")
+        for topic, qos in MQTT_TOPICS:
+            client.subscribe(topic, qos)
+            print(f"[MQTT] Subscribed to {topic}")
+    else:
+        print(f"[MQTT] Connection failed: {rc}")
+
+def on_message(client, userdata, msg):
+    payload = msg.payload.decode("utf-8", errors="ignore")
+    print(f"[MQTT EVENT] {msg.topic}: {payload}")
+
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # place logic here to handle events from MQTT
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+client = mqtt.Client()
+
+client.username_pw_set(
+    username=MQTT_USERNAME,
+    password=MQTT_PASSWORD
+)
+
+client.on_connect = on_connect
+client.on_message = on_message
+
+client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
+
+print("[SYSTEM] Listening for MQTT events...")
+client.loop_start()
+
+# ------------------------------------- #
 
 def send(cmd: str):
     ser.write((cmd + "\n").encode())
@@ -44,16 +88,11 @@ def ACK_handler(data: str):
         print("Unknown ACK message")
 
 def start_minecraft_server():
+    """Start server via MQTT command."""
     global state
-    url = f"{HA_URL}/api/services/button/press"
-    headers = {
-        "Authorization": f"Bearer {HA_TOKEN}",
-        "Content-Type": "application/json",
-    }
-    payload = {"entity_id": SERVER_START_ENTITY}
-    r = requests.post(url, json=payload, headers=headers, timeout=5)
-    r.raise_for_status()
+    client.publish("hackpad/command/start_server", "press")
     state = ServerState.STARTING
+    print("Minecraft server start command sent via MQTT")
     print("Minecraft server started")
 
 def BUTTON_handler(data: str):
@@ -107,45 +146,6 @@ def wait_for_device_ready():
         sleep(0.1)
     return False
 
-def get_player_count():
-    url = f"{HA_URL}/api/states/sensor.192_168_1_242_19132_spelers_online"
-    headers = {
-        "Authorization": f"Bearer {HA_TOKEN}",
-        "Content-Type": "application/json",
-    }
-
-    r = requests.get(url, headers=headers, timeout=5)
-    r.raise_for_status()
-    data = r.json()
-    return data.get("state", "not_found")
-
-def update_server_state():
-    global state
-    player_count: str = get_player_count()
-
-    if player_count.isdigit():
-        if int(player_count) == 0:
-            new_state = ServerState.RUNNING
-        elif int(player_count) > 0:
-            new_state = ServerState.PEOPLE_ONLINE
-    elif player_count == "unavailable":
-        if state != ServerState.STARTING:
-            new_state = ServerState.OFF
-        else:
-            new_state = state
-    elif player_count == "not_found":
-        new_state = ServerState.ERROR
-    
-
-    if new_state != state:
-        if new_state == ServerState.OFF:
-            send("LED OFF")
-        elif new_state in (ServerState.STARTING, ServerState.RUNNING, ServerState.PEOPLE_ONLINE):
-            send("LED ON")
-        
-        print(f"Server state changed from {state} to {new_state}")
-        state = new_state
-
 def wait_for_device_connected():
     global ser
     while True:
@@ -157,10 +157,6 @@ def wait_for_device_connected():
             sleep(1)
 
 def main():
-    if not HA_TOKEN:
-        print("Missing HA_TOKEN. Set it in your environment or .env file.")
-        return
-    
     wait_for_device_connected()
 
     if not wait_for_device_ready():
@@ -168,17 +164,11 @@ def main():
         return
     
     print("Device ready")
-    poll_interval = 2.0
-    last_poll_time = monotonic()
     
     while True:
         msg = read()
         if msg:
             process_msg(msg)
-        
-        if monotonic() - last_poll_time >= poll_interval:
-            update_server_state()
-            last_poll_time = monotonic()
 
         sleep(0.05)
 

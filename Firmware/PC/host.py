@@ -36,7 +36,7 @@ MQTT_TOPICS = [
     ("minecraft/chat", 0),
     ("minecraft/log", 0),
     ("minecraft/players", 0),
-    ("minecraft/status", 0),
+    ("minecraft/version", 0),
 ]
 
 def on_connect(client, userdata, flags, rc):

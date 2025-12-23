@@ -1,14 +1,20 @@
 import sys
 import select
-from machine import Pin
+from machine import Pin, I2C
 from time import sleep, ticks_ms
+import ssd1306
+from neopixel import NeoPixel
 
-green_led = Pin(2, Pin.OUT)
-yellow_led = Pin(3, Pin.OUT)
-            
+#------------ Connected components ------------#
+# rgb_led = NeoPixel(Pin(11), 1)
+
 next_button = Pin(10, Pin.IN, Pin.PULL_UP) 
 prev_button  = Pin(20, Pin.IN, Pin.PULL_UP)
 start_button  = Pin(21, Pin.IN, Pin.PULL_UP)
+
+# i2c = I2C(sda=Pin(5), scl=Pin(6)) # Correct pinout for XIAO RP2040
+# lcd_display = ssd1306.SSD1306_I2C(128, 64, i2c)
+#---------------------------------------------#
 
 button_states = {
     "NEXT": False,
@@ -21,9 +27,6 @@ button_press_times = {
     "PREV": 0,
     "START": 0,
 }
-
-green_led.off()
-yellow_led.off()
 
 def send(msg: str):
     sys.stdout.write(msg + "\n")
@@ -43,13 +46,18 @@ def read_line():
             pass
     return None
 
-def handle_led(state: str):
-    if state == "ON":
-        green_led.on()
-    elif state == "OFF":
-        green_led.off()
+def handle_led(data: str):
+    # Expecting format: "R G B"
+    data = data.split(" ")
+    if len(data) > 3:
+        r, g, b = data[0:3]
+        # rgb_led[0] = (int(r), int(g), int(b))
+        # rgb_led.write()
     else:
-        send("ERR UNKNOWN_STATE: " + state)
+        send("ERR INVALID_LED_CMD")
+
+def handle_display(data: str):
+    pass # ADD LATER
 
 def handle_start(data: str):
     send("STATUS READY")
@@ -60,8 +68,9 @@ def process_command(cmd: str):
     data = parts[1] if len(parts) > 1 else ""
 
     command_handlers = {
-        "LED": handle_led,
+        # "LED": handle_led,
         "START": handle_start,
+        # "DISPLAY": handle_display,
     }
 
     if command_type in command_handlers:
@@ -77,12 +86,10 @@ def check_button(button: Pin, name: str):
     changed_to_released = not is_pressed and was_pressed
 
     if changed_to_pressed:
-        yellow_led.on()
         button_states[name] = True
         button_press_times[name] = ticks_ms()
 
     elif changed_to_released:
-        yellow_led.off()
         button_states[name] = False
         press_duration = ticks_ms() - button_press_times[name]
 

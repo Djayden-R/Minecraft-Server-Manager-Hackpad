@@ -26,10 +26,24 @@ class ServerState(Enum):
     STARTING = auto()
     RUNNING = auto()
     PEOPLE_ONLINE = auto()
-    ERROR = auto()
 
-state = None
-ser = None
+
+class Mode(Enum):
+    STATUS = auto()
+    CHAT = auto()
+    LOG = auto()
+
+current_mode = None
+
+server_info = {
+    "status": None,
+    "players": None,
+    "version": None,
+    "chat_lines": [],
+    "log_lines": []
+}
+
+
 
 # ------------- MQTT Setup ------------- #
 MQTT_TOPICS = [
@@ -41,20 +55,55 @@ MQTT_TOPICS = [
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print("[MQTT] Connected")
+        print("Connected to MQTT")
         for topic, qos in MQTT_TOPICS:
             client.subscribe(topic, qos)
-            print(f"[MQTT] Subscribed to {topic}")
     else:
-        print(f"[MQTT] Connection failed: {rc}")
+        print(f"Connecting to MQTT failed: {rc}")
+
+def update_status_display():
+    pass #ADD LATER
+
+def update_chat_display(new_line: str):
+    pass #ADD LATER
+
+def update_log_display(new_line: str):
+    pass #ADD LATER
 
 def on_message(client, userdata, msg):
     payload = msg.payload.decode("utf-8", errors="ignore")
     print(f"[MQTT EVENT] {msg.topic}: {payload}")
 
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # place logic here to handle events from MQTT
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if msg.topic == "minecraft/players": # Update playercount and server state
+        player_amount = payload
+        if player_amount.isdigit():
+            if int(player_amount) == 0:
+                send(f"STATUS {ServerState.RUNNING}")
+            elif int(player_amount) > 0:
+                send(f"STATUS {ServerState.PEOPLE_ONLINE}")
+            send(f"PLAYERS {player_amount}")
+        elif player_amount == "unavailable":
+            send("STATUS OFFLINE")
+
+    elif msg.topic == "minecraft/log": # Check if mode is log and draw log line to screen
+        log_message = payload
+        server_info["log_lines"].append(log_message)
+        if current_mode == Mode.LOG:
+            update_log_display(log_message)
+
+    elif msg.topic == "minecraft/chat":
+        chat_message = payload
+        server_info["chat_lines"].append(chat_message)
+        if current_mode == Mode.CHAT:
+            update_chat_display(chat_message)
+
+    elif msg.topic == "minecraft/version":
+        version_number = payload
+        if version_number != "unavailable":
+            if version_number != server_info["version"]:
+                server_info["version"] = version_number
+                if current_mode == Mode.STATUS:
+                    update_status_display()
 
 client = mqtt.Client()
 
@@ -67,8 +116,6 @@ client.on_connect = on_connect
 client.on_message = on_message
 
 client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
-
-print("[SYSTEM] Listening for MQTT events...")
 client.loop_start()
 
 # ------------------------------------- #
@@ -81,18 +128,10 @@ def read():
         return ser.readline().decode().strip()
     return None
 
-def ACK_handler(data: str):
-    if data:
-        print("Acknowledged: ", data)
-    else:
-        print("Unknown ACK message")
-
 def start_minecraft_server():
-    """Start server via MQTT command."""
     global state
-    client.publish("hackpad/command/start_server", "press")
+    client.publish("minecraft/start_server", "press")
     state = ServerState.STARTING
-    print("Minecraft server start command sent via MQTT")
     print("Minecraft server started")
 
 def BUTTON_handler(data: str):
@@ -109,7 +148,10 @@ def BUTTON_handler(data: str):
 
 def ERR_handler(data: str):
     if data:
-        print("Error: ", data)
+        parts = data.split(":", 1)
+        error_type = parts[0]
+        error_info = parts[1] if len(parts) > 1 else ""
+        print(f"{error_type} Error: {error_info}")
     else:
         print("Unknown ERR message")
 
@@ -119,7 +161,6 @@ def process_msg(msg: str):
     data = parts[1] if len(parts) > 1 else ""
 
     command_handlers = {
-        "ACK": ACK_handler,
         "BUTTON": BUTTON_handler,
         "ERR": ERR_handler,
     }
@@ -140,7 +181,7 @@ def wait_for_device_ready():
             if command_type == "STATUS" and len(parts) > 1 and parts[1] == "READY":
                 return True
             
-            print("Waiting for device... Received: ", msg)
+            print("Waiting for Hackpad... Received: ", msg)
                 
         retries -= 1
         sleep(0.1)
@@ -151,7 +192,7 @@ def wait_for_device_connected():
     while True:
         try:
             ser = serial.Serial(COM_PORT, 115200, timeout=0)
-            print("Found device on", COM_PORT)
+            print("Found Hackpad on", COM_PORT)
             return
         except serial.serialutil.SerialException:
             sleep(1)
@@ -160,10 +201,10 @@ def main():
     wait_for_device_connected()
 
     if not wait_for_device_ready():
-        print("Device not ready, exiting...")
+        print("Hackpad not ready, exiting...")
         return
     
-    print("Device ready")
+    print("Hackpad ready")
     
     while True:
         msg = read()

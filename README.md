@@ -12,8 +12,7 @@ Couldn't I just make a Discord bot to ping me when my friends go online? Yeah, b
 
 ## How does it work?
 
-The main logic of checking the server status and the chat isn't done on the Hackpad itself, but instead on the computer it is connected to. To make this work the pc will need to run the ```host.py```. This is going to connect with Home Assistant via MQTT and will gather and process all the information.
-
+The main logic of checking the server status and the chat isn't done on the Hackpad itself, but instead on the computer it is connected to. To make this work the pc will need to run the ```host.py```. This is going to connect with Home Assistant via MQTT. There is a Home Assistant automation needed that sends the information to the correct topics.
 The program can send the following to the Hackpad (over USB):
 
 - LED [COLOR] (not implemented yet)

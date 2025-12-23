@@ -25,6 +25,21 @@ The Hackpads only task is to control the LCD, LED and send the button presses (e
 - MODE_NEXT
 - MODE_PREV
 
+## How much of this is implemented?
+
+Not all of the features listed here are implemented already, since I don't have access to all the components yet. But I have already made a working demo
+
+### What is implemented
+
+- The button presses already work and are sent to the PC
+- A long press of the start button is already mapped to a WoL button in Home Assistant
+- The program knows when ```player count```, ```version```, ```last log``` or ```last message``` changes and updates the values in the code
+
+### What isn't implemented
+
+- Different modes displaying different info on the screen
+- Status LED showing server status
+
 ## Hardware
 
 Schematic                               |  PCB                   |   Case

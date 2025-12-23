@@ -78,12 +78,12 @@ def on_message(client, userdata, msg):
         player_amount = payload
         if player_amount.isdigit():
             if int(player_amount) == 0:
-                send(f"STATUS {ServerState.RUNNING}")
+                server_info["status"] = ServerState.RUNNING
             elif int(player_amount) > 0:
-                send(f"STATUS {ServerState.PEOPLE_ONLINE}")
-            send(f"PLAYERS {player_amount}")
+                server_info["status"] = ServerState.PEOPLE_ONLINE
+            server_info["players"] = int(player_amount)
         elif player_amount == "unavailable":
-            send("STATUS OFFLINE")
+            server_info["status"] = ServerState.OFF
 
     elif msg.topic == "minecraft/log": # Check if mode is log and draw log line to screen
         log_message = payload

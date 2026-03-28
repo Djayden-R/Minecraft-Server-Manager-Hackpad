@@ -4,6 +4,8 @@ This is a hackpad designed to control a Minecraft server. It has keys to interac
 
 ![Overall Hackpad](Images/assembled-project.jpg)
 
+A demonstraction video can be found [here](https://youtu.be/SgViQMdPCGE) and the build process is documented [here](https://blueprint.hackclub.com/projects/6261).
+
 ## Why did I make it?
 
 I have a Minecraft server with my friends and often don't notice it when my friends are online, so I wanted to make this device to show when my friends go online.

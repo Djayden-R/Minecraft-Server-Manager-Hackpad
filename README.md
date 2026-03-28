@@ -2,7 +2,7 @@
 
 This is a hackpad designed to control a Minecraft server. It has keys to interact with the server and device: a start key and two keys to switch between modes. It will indicate the state of the server using a status LED and has a screen that displays the live chat and other information about the server.
 
-![Overall Hackpad](Images/assembled-hackpad.png)
+![Overall Hackpad](Images/assembled-project.jpg)
 
 ## Why did I make it?
 
@@ -12,38 +12,33 @@ Couldn't I just make a Discord bot to ping me when my friends go online? Yeah, b
 
 ## How does it work?
 
-The main logic of checking the server status and the chat isn't done on the Hackpad itself, but instead on the computer it is connected to. To make this work the pc will need to run the ```host.py```. This is going to connect with Home Assistant via MQTT. There is a Home Assistant automation needed that sends the information to the correct topics.
+The main logic of checking the server status and the chat isn't done on the Hackpad itself, but instead on the computer it is connected to. To make this work the pc will need to run the ```host.py```. This is going to connect with Home Assistant via MQTT. There is a Home Assistant automation needed that sends the information to the correct MQTT topics.
 The program can send the following to the Hackpad (over USB):
 
-- LED [COLOR] (not implemented yet)
-- LCD [LINE] [TEXT] (also not implemented yet)
+- LED [COLOR]
+- STATUS [STATUS] [PLAYERS] [VERSION] [UPTIME]
+- CHAT [LAST_MESSAGE]
+- LOG [LOGLINE]
+- MODE [MODE]
 
-The Hackpads only task is to control the LCD, LED and send the button presses (either LONG or SHORT):
+The Hackpads task is to handle displaying text on the LCD, handle the LED and send the button presses (either LONG or SHORT):
 
 - START
 - MODE_NEXT
 - MODE_PREV
 
-## How much of this is implemented?
+Also, about the LED, the hackpad displays different colors in different situations:
 
-Not all of the features listed here are implemented already, since I don't have access to all the components yet. But I have already made a working demo
-
-### What is implemented
-
-- The button presses already work and are sent to the PC
-- A long press of the start button is already mapped to a WoL button in Home Assistant
-- The program knows when ```player count```, ```version```, ```last log``` or ```last message``` changes and updates the values in the code
-
-### What isn't implemented
-
-- Different modes displaying different info on the screen
-- Status LED showing server status
+- Server off > Red
+- Server booting > Blinking Orange
+- Server on > Blue
+- People online > Blinking Green
 
 ## Hardware
 
-Schematic                               |  PCB                   |   Case
+Schematic                               |  PCB                   |   3D model
 :--------------------------------------:|:----------------------:|:-------------------------:
-![Schematic](Images/wire-schematic.png) | ![PCB](Images/pcb.png) | ![Case](Images/case.png)
+![Schematic](Images/wire-schematic.png) | ![PCB](Images/pcb.png) | ![Case](Images/3d-model.png)
 
 ## BOM
 
